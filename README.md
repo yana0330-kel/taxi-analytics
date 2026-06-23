@@ -1,2 +1,39 @@
 # taxi-analytics
-ETL pipeline for taxi data analysis using PostgreSQL -> Greenplum -> ClickHouse -> Superset. The orchestration of the process is carried out through Airflow .
+# NYC Taxi Data Pipeline (ETL/ELT)
+
+Проект по построению сквозного аналитического пайплайна для обработки и визуализации исторических данных о поездках такси в Нью-Йорке (NYC Taxi & Limousine Commission).
+
+## Особенности реализации 
+* **Изолированная инфраструктура:** Проект полностью отделен и развернут в собственном Docker-окружении (`taxi-project`) с кастомной конфигурацией портов.
+* **Чистая архитектура (SQL outside DAG):** SQL-код инициализации и трансформаций полностью вынесен из тела Python-скриптов Airflow в отдельные структурированные `.sql`-файлы внутри папок автозапуска СУБД.
+
+## 🛠 Стек технологий
+* **Оркестрация:** Apache Airflow
+* **Сырой слой (Raw):** PostgreSQL
+* **Хранилище данных (DWH):** Greenplum (MPP СУБД)
+* **Витрины данных (Data Marts):** ClickHouse
+* **BI-аналитика и дашборды:** Apache Superset
+* **Инфраструктура:** Docker / Docker Compose
+
+---
+
+## Архитектура движения данных (Data Pipeline)
+1. **Raw Layer (PostgreSQL):** Сырые данные из CSV-файлов валидируются и загружаются в схему `raw` с использованием текстовых типов данных (`VARCHAR`) во избежание сбоев при первичной загрузке.
+2. **DWH Layer (Greenplum):** Данные проходят дедупликацию, очистку, типизацию (приведение к типам `TIMESTAMP`, `NUMERIC`, `INTEGER`) и распределяются по фактовым таблицам и справочникам.
+3. **Data Marts (ClickHouse):** Очищенные агрегаты и витрины данных переливаются в ClickHouse для обеспечения максимальной скорости выполнения аналитических запросов.
+4. **BI Layer (Apache Superset):** Построение интерактивных дашбордов над витринами ClickHouse для бизнес-анализа.
+
+---
+
+## Локальное развертывание и порты проекта
+Проект использует файл конфигурации `.env`. Для запуска выполните:
+```bash
+docker compose up -d
+```
+
+### Карта сетевых портов:
+* **Apache Airflow UI:** [http://localhost:8080](http://localhost:8080)
+* **Apache Superset UI:** [http://localhost:8088](http://localhost:8088)
+* **PostgreSQL (Raw):** `localhost:5433` (База: `rawdb`, Схема: `raw`)
+* **Greenplum (DWH):** `localhost:5434` (База: `dwh`)
+* **ClickHouse (Marts):** `localhost:8123` (База: `dm_ch`)
