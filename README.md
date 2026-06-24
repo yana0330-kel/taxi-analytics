@@ -1,5 +1,5 @@
 # taxi-analytics
-# NYC Taxi Data Pipeline (ETL/ELT)
+# NYC Taxi Data Pipeline (ETL)
 
 Проект по построению сквозного аналитического пайплайна для обработки и визуализации исторических данных о поездках такси в Нью-Йорке (NYC Taxi & Limousine Commission).
 
