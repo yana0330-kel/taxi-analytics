@@ -40,16 +40,12 @@ with DAG(
         engine = create_engine(hook.get_uri())
         logging.info(f"Загрузка {file_path.name}...")
 
-        # Маппинг колонок для поездок (чтобы не писать огромный список руками)
-        columns_map = {
-            'vendorid': 'vendor_id', 'ratecodeid': 'ratecode_id',
-            'pulocationid': 'pulocation_id', 'dolocationid': 'dolocation_id'
-        }
 
-        for chunk in pd.read_csv(file_path, chunksize=100_000):
-            chunk.columns = [c.lower() for c in chunk.columns]
+        for chunk in pd.read_csv(file_path, chunksize=200_000):
             if table_name == 'taxi_trips':
-                chunk = chunk.rename(columns=columns_map)
+                # Переводим в нижний регистр и точечно чиним id (vendorid -> vendor_id, ratecodeid -> ratecode_id)
+                cols = [c.lower() for c in chunk.columns]
+                chunk.columns = [c.replace('id', '_id').replace('__', '_') for c in cols]
             elif table_name == 'raw_taxi_zones':
                 chunk.columns = ['locationid', 'borough', 'zone', 'service_zone']
 
