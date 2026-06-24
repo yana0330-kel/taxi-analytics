@@ -1,0 +1,1 @@
+TRUNCATE TABLE raw.raw_taxi_zones;

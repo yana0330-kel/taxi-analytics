@@ -5,4 +5,4 @@ plugins/*
 !plugins/.gitkeep
 __pycache__/
 *.pyc
-.DS_Store
+services/airflow/data/*.csv
