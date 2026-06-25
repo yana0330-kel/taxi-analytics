@@ -34,7 +34,7 @@ with DAG(
     def check_postgres_scr():
         """2. Проверка наличия сырых данных в источнике."""
         hook = PostgresHook(postgres_conn_id=RAW_PG_CONN_ID)
-        for table in ["taxi_trips", "raw_taxi_zones"]:
+        for table in ["raw_taxi_trips", "raw_taxi_zones"]:
             if not hook.get_first(f"SELECT to_regclass('raw.{table}')"):
                 raise ValueError(f"Таблица raw.{table} не найдена в PostgreSQL.")
             
@@ -67,7 +67,7 @@ with DAG(
                 buffer = io.StringIO()
 
                 
-                pg_cur.copy_expert(f"COPY raw.taxi_trips ({cols_str}) TO STDOUT WITH DELIMITER '\t';", buffer)
+                pg_cur.copy_expert(f"COPY raw.raw_taxi_trips ({cols_str}) TO STDOUT WITH DELIMITER '\t';", buffer)
                 buffer.seek(0)
                 gp_cur.copy_expert(f"COPY dwh.taxi_trips ({cols_str}) FROM STDIN WITH DELIMITER '\t';", buffer)
                 gp_conn.commit()

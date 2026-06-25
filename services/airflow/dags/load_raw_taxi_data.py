@@ -3,16 +3,16 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 import logging
-import pandas as pd
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
-from sqlalchemy import create_engine
 
 PG_CONN_ID = "postgres_raw"
 DATA_DIR = Path("/opt/airflow/data")
 ZONES_CSV = DATA_DIR / "taxi_zone_lookup.csv"
 TRIPS_CSV = DATA_DIR / "yellow_tripdata_2019_01.csv"
+
+default_args = {"owner": "yana_kel", "retries": 1}
 
 with DAG(
     dag_id="load_new_york_taxi_data",
@@ -33,31 +33,39 @@ with DAG(
     def load_csv_to_postgres(file_path: Path, table_name: str, sql_file: str):
         hook = PostgresHook(postgres_conn_id=PG_CONN_ID)
         
+        # 1. Очищаем таблицу перед новой заливкой
         logging.info(f"Очистка {table_name} через {sql_file}")
         sql_query = Path(f"/opt/airflow/dags/sql/{sql_file}").read_text(encoding="utf-8")
         hook.run(sql_query, autocommit=True)
 
-        engine = create_engine(hook.get_uri())
-        logging.info(f"Загрузка {file_path.name}...")
-
-
-        for chunk in pd.read_csv(file_path, chunksize=200_000):
-            if table_name == 'taxi_trips':
-                # Переводим в нижний регистр и точечно чиним id (vendorid -> vendor_id, ratecodeid -> ratecode_id)
-                cols = [c.lower() for c in chunk.columns]
-                chunk.columns = [c.replace('id', '_id').replace('__', '_') for c in cols]
-            elif table_name == 'raw_taxi_zones':
-                chunk.columns = ['locationid', 'borough', 'zone', 'service_zone']
-
-            chunk.to_sql(name=table_name, con=engine, schema="raw", if_exists="append", index=False)
+        logging.info(f"Ультра-загрузка файла {file_path.name} через COPY...")
+        
+        # 2. Открываем файл на чтение и стримим его напрямую в Postgres через сокет
+        with hook.get_conn() as conn:
+            with conn.cursor() as cur:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    # Читаем первую строчку файла, чтобы узнать точные имена колонок в CSV
+                    header_line = f.readline().strip()
+                    # Приводим их к нижнему регистру, как в нашей таблице Postgres
+                    csv_columns = header_line.lower()
+                    csv_columns = csv_columns.replace('location_id', 'locationid').replace('vendor_id', 'vendorid').replace('ratecode_id', 'ratecodeid').replace('pulocation_id', 'pulocationid').replace('dolocation_id', 'dolocationid') 
+                    
+                    # Возвращаем указатель в начало файла, чтобы COPY прочитал его целиком
+                    f.seek(0)
+                    
+                    # Указываем базе данных, какие именно колонки мы берем из CSV (пропуская dt)
+                    sql_copy = f"COPY raw.{table_name} ({csv_columns}) FROM STDIN WITH DELIMITER ',' CSV HEADER NULL AS '';"
+                    cur.copy_expert(sql_copy, f)
+                
+        logging.info(f"Файл {file_path.name} успешно загружен в таблицу raw.{table_name}!")
 
     def check_loaded_rows():
         hook = PostgresHook(postgres_conn_id=PG_CONN_ID)
-        for table in ["raw_taxi_zones", "taxi_trips"]:
+        for table in ["raw_taxi_zones", "raw_taxi_trips"]:
             cnt = hook.get_first(f"SELECT count(*) FROM raw.{table};")[0]
             if not cnt:
                 raise ValueError(f"Таблица raw.{table} пуста!")
-            logging.info(f"Таблица raw.{table}: {cnt} строк.")
+            logging.info(f"Таблица raw.{table} содержит {cnt} строк.")
 
     # Операторы
     task_check = PythonOperator(task_id="check_csv_files", python_callable=check_csv_files)
@@ -71,7 +79,7 @@ with DAG(
     task_trips = PythonOperator(
         task_id="load_trips_to_postgres",
         python_callable=load_csv_to_postgres,
-        op_kwargs={'file_path': TRIPS_CSV, 'table_name': 'taxi_trips', 'sql_file': 'truncate_trips.sql'}
+        op_kwargs={'file_path': TRIPS_CSV, 'table_name': 'raw_taxi_trips', 'sql_file': 'truncate_trips.sql'}
     )
 
     task_verify = PythonOperator(task_id="check_loaded_rows", python_callable=check_loaded_rows)

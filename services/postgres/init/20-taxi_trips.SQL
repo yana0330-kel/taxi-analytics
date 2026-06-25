@@ -1,17 +1,19 @@
+\c rawdb;
+
 CREATE SCHEMA IF NOT EXISTS raw;
 
-DROP TABLE IF EXISTS raw.taxi_trips;
+DROP TABLE IF EXISTS raw.raw_taxi_trips;
 
-CREATE TABLE raw.taxi_trips (
-    vendor_id              VARCHAR(10),
+CREATE TABLE raw.raw_taxi_trips (
+    vendorid               VARCHAR(10),  -- Слитно
     tpep_pickup_datetime   VARCHAR(30),
     tpep_dropoff_datetime  VARCHAR(30),
     passenger_count        VARCHAR(10),
     trip_distance          VARCHAR(20),
-    ratecode_id            VARCHAR(10),
+    ratecodeid             VARCHAR(10),  -- Слитно
     store_and_fwd_flag     VARCHAR(5),
-    pulocation_id          VARCHAR(10),
-    dolocation_id          VARCHAR(10),
+    pulocationid           VARCHAR(10),  -- Слитно
+    dolocationid           VARCHAR(10),  -- Слитно
     payment_type           VARCHAR(10),
     fare_amount            VARCHAR(20),
     extra                  VARCHAR(20),

@@ -1,4 +1,4 @@
-\connect rawdb
+\connect rawdb;
 
 CREATE SCHEMA IF NOT EXISTS raw AUTHORIZATION raw_user;
 
