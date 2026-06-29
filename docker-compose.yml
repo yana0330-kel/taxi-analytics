@@ -3,7 +3,8 @@ name: taxi-project
 x-airflow-common: &airflow-common
   build:
     context: ./services/airflow
-  image: fpp-airflow:superstore
+  image: taxi-airflow:NY_taxi
+  container_name: taxi_airflow
   user: "${AIRFLOW_UID:-50000}:0"
   restart: "no"
   environment: &airflow-env
@@ -13,11 +14,7 @@ x-airflow-common: &airflow-common
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
     AIRFLOW__CORE__TEST_CONNECTION: "Enabled"
     AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
-    AIRFLOW__WEBSERVER__SECRET_KEY: local_airflow_secret_key_for_fpp
-
-    AIRFLOW_CONN_POSTGRES_RAW: "postgresql://raw_user:raw_pass@postgres:5432/rawdb?options=-csearch_path%3Draw"
-    AIRFLOW_CONN_GREENPLUM_DWH: "postgresql://gpadmin:${GP_PASSWORD}@greenplum:5432/${GP_DB}"
-    AIRFLOW_CONN_CLICKHOUSE_MARTS: "clickhouse://localhost:8123/${CLICKHOUSE_DB}"
+    AIRFLOW__WEBSERVER__SECRET_KEY: local_airflow_secret_key_for_taxi
   volumes:
     - ./services/airflow/dags:/opt/airflow/dags:ro
     - ./services/airflow/data:/opt/airflow/data:ro
@@ -51,11 +48,11 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./services/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres} -d postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_ADMIN_USER} -d postgres"]
       interval: 10s
       timeout: 5s
       retries: 20
-      start_period: 45s
+      start_period: 10s
 
   clickhouse:
     image: clickhouse/clickhouse-server:24.8-alpine
@@ -76,18 +73,21 @@ services:
       nofile:
         soft: 262144
         hard: 262144
-    healthcheck: # Сдвинуто вправо на нужный уровень
-      test: ["CMD-SHELL", "clickhouse-client --user $${CLICKHOUSE_USER} --password $${CLICKHOUSE_PASSWORD} --query 'SELECT 1' >/dev/null 2>&1"]
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --user ${CLICKHOUSE_USER} --password ${CLICKHOUSE_PASSWORD} --query 'SELECT 1' >/dev/null 2>&1"]
       interval: 10s
       timeout: 5s
       retries: 30
-      start_period: 60s
+      start_period: 20s
 
   greenplum:
     build:
       context: ./services/greenplum
-    image: fpp-greenplum-pxf-2seg:superstore
+    image: taxi-greenplum-pxf-2seg:NYC_taxi
     container_name: taxi_greenplum
+    # Greenplum сохраняет hostname master/segments в каталоге кластера.
+    # Без фиксированного hostname после docker compose down/up контейнер может
+    # получить новый hostname, а Greenplum не сможет стартовать со старым volume.
     hostname: greenplum
     stop_grace_period: 120s
     restart: "no"
@@ -113,14 +113,17 @@ services:
       nofile:
         soft: 65535
         hard: 65535
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "bash -c 'cat < /dev/null > /dev/tcp/localhost/5432'"]
-      interval: 10s
-      timeout: 5s
-      retries: 15
-      start_period: 45s
-
-
+      test: ["CMD-SHELL", "bash -lc 'source /home/gpadmin/.bashrc && PGPASSWORD=${GP_PASSWORD} psql -h localhost -p 5432 -U gpadmin -d ${GP_DB} -tAc \"select 1\" | grep -q 1'"]
+      interval: 15s
+      timeout: 10s
+      retries: 40
+      start_period: 180s
 
   airflow-init:
     <<: *airflow-common
@@ -177,7 +180,7 @@ services:
   superset-init:
     build:
       context: ./services/superset
-    image: fpp-superset:superstore
+    image: taxi-superset:NYC_taxi
     container_name: taxi_superset_init
     restart: "no"
     environment:
@@ -198,7 +201,7 @@ services:
         condition: service_healthy
 
   superset:
-    image: fpp-superset:superstore
+    image: taxi-superset:NYC_taxi
     container_name: taxi_superset
     restart: "no"
     environment:

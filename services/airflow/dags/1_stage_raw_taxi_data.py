@@ -15,12 +15,13 @@ TRIPS_CSV = DATA_DIR / "yellow_tripdata_2019_01.csv"
 default_args = {"owner": "yana_kel", "retries": 1}
 
 with DAG(
-    dag_id="load_new_york_taxi_data",
+    dag_id="1_stage_raw_taxi_data",
+     default_args=default_args,
     start_date=datetime(2026, 1, 1),
     schedule_interval=None,
     catchup=False,
     max_active_runs=1,
-    template_searchpath="/opt/airflow/dags/sql",
+    template_searchpath="/opt/airflow/dags/sql/raw",
     tags=["taxi-project", "raw"],
 ) as dag:
 
@@ -35,25 +36,20 @@ with DAG(
         
         # 1. Очищаем таблицу перед новой заливкой
         logging.info(f"Очистка {table_name} через {sql_file}")
-        sql_query = Path(f"/opt/airflow/dags/sql/{sql_file}").read_text(encoding="utf-8")
+        sql_query = Path(f"/opt/airflow/dags/sql/raw/{sql_file}").read_text(encoding="utf-8")
         hook.run(sql_query, autocommit=True)
 
         logging.info(f"Ультра-загрузка файла {file_path.name} через COPY...")
         
-        # 2. Открываем файл на чтение и стримим его напрямую в Postgres через сокет
         with hook.get_conn() as conn:
             with conn.cursor() as cur:
                 with open(file_path, 'r', encoding='utf-8') as f:
-                    # Читаем первую строчку файла, чтобы узнать точные имена колонок в CSV
                     header_line = f.readline().strip()
-                    # Приводим их к нижнему регистру, как в нашей таблице Postgres
                     csv_columns = header_line.lower()
                     csv_columns = csv_columns.replace('location_id', 'locationid').replace('vendor_id', 'vendorid').replace('ratecode_id', 'ratecodeid').replace('pulocation_id', 'pulocationid').replace('dolocation_id', 'dolocationid') 
                     
-                    # Возвращаем указатель в начало файла, чтобы COPY прочитал его целиком
                     f.seek(0)
                     
-                    # Указываем базе данных, какие именно колонки мы берем из CSV (пропуская dt)
                     sql_copy = f"COPY raw.{table_name} ({csv_columns}) FROM STDIN WITH DELIMITER ',' CSV HEADER NULL AS '';"
                     cur.copy_expert(sql_copy, f)
                 
@@ -67,7 +63,6 @@ with DAG(
                 raise ValueError(f"Таблица raw.{table} пуста!")
             logging.info(f"Таблица raw.{table} содержит {cnt} строк.")
 
-    # Операторы
     task_check = PythonOperator(task_id="check_csv_files", python_callable=check_csv_files)
     
     task_zones = PythonOperator(

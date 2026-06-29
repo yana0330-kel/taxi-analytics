@@ -16,7 +16,7 @@ GP_CONN_ID = "greenplum_dwh"
 default_args = {"owner": "yana_kel", "retries": 1}
 
 with DAG(
-    dag_id="extract_core_taxi_data",
+    dag_id="2_core_dwh_taxi_data",
     default_args=default_args,
     start_date=datetime(2026, 1, 1),
     schedule_interval=None,
@@ -26,13 +26,13 @@ with DAG(
 ) as dag:
 
     def check_postgres_connection():
-        """1. Проверка доступности баз данных."""
+        """Проверка доступности баз данных."""
         for conn_id, name in [(RAW_PG_CONN_ID, "PostgreSQL"), (GP_CONN_ID, "Greenplum")]:
             PostgresHook(postgres_conn_id=conn_id).get_conn()
             logging.info(f"Соединение с {name} успешно установлено.")
 
     def check_postgres_scr():
-        """2. Проверка наличия сырых данных в источнике."""
+        """Проверка наличия сырых данных в источнике."""
         hook = PostgresHook(postgres_conn_id=RAW_PG_CONN_ID)
         for table in ["raw_taxi_trips", "raw_taxi_zones"]:
             if not hook.get_first(f"SELECT to_regclass('raw.{table}')"):
@@ -44,14 +44,14 @@ with DAG(
                 raise ValueError(f"Таблица raw.{table} пуста!")
 
     def run_core_sql(sql_file: str):
-        """3. Универсальный запуск SQL-файлов."""
+        """Запуск SQL-файлов."""
         hook = PostgresHook(postgres_conn_id=GP_CONN_ID)
         sql_path = Path(f"/opt/airflow/dags/sql/core/{sql_file}")
         hook.run(sql_path.read_text(encoding="utf-8"), autocommit=True)
         logging.info(f"Скрипт {sql_file} успешно выполнен.")
 
     def python_load_trips_to_greenplum():
-        """4. Высокоскоростной стриминг COPY с автоматическим чтением колонок из SQL-файла."""
+        """COPY с автоматическим чтением колонок из SQL-файла."""
         pg_hook = PostgresHook(postgres_conn_id=RAW_PG_CONN_ID)
         gp_hook = PostgresHook(postgres_conn_id=GP_CONN_ID)
 
@@ -72,7 +72,7 @@ with DAG(
                 gp_cur.copy_expert(f"COPY dwh.taxi_trips ({cols_str}) FROM STDIN WITH DELIMITER '\t';", buffer)
                 gp_conn.commit()
 
-        logging.info(f"Ультра-загрузка {len(columns)} колонок успешно завершена!")
+        logging.info(f"Загрузка {len(columns)} колонок успешно завершена!")
 
     
     task_check_connections = PythonOperator(
