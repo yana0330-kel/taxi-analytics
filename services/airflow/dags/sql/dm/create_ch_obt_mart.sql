@@ -1,4 +1,4 @@
--- 1. Удаляем старый мост, если он остался
+-- Слой: DATA MART. Writable PXF-мост Greenplum -> ClickHouse.
 DROP EXTERNAL TABLE IF EXISTS dm.ext_ch_obt_taxi_marts CASCADE;
 
 CREATE WRITABLE EXTERNAL TABLE dm.ext_ch_obt_taxi_marts
@@ -31,6 +31,10 @@ CREATE WRITABLE EXTERNAL TABLE dm.ext_ch_obt_taxi_marts
     hour_only              INTEGER,
     trip_inmin             NUMERIC(10, 2)
 )
-
-LOCATION ('pxf://dm_ch.obt_taxi_marts?PROFILE=JDBC&SERVER=clickhouse')    
+LOCATION ('pxf://dm_ch.obt_taxi_marts?PROFILE=JDBC&SERVER=clickhouse')
 FORMAT 'CUSTOM' (FORMATTER='pxfwritable_export');
+
+-- NB: типы этого моста должны соответствовать физической ClickHouse-таблице
+-- (create_physical_ch_table.sql: Float32/UInt16/String и т.д.) — рассинхрон типов
+-- между writable external table и целевой таблицей ClickHouse через PXF частая
+-- причина тихих ошибок/потери точности при вставке.

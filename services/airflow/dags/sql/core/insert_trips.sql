@@ -1,3 +1,7 @@
+-- Слой: CORE. Загрузка и типизация trips: явный ::CAST по каждому полю и явный
+-- парсинг дат вместо неявного приведения типов — при некорректном формате в
+-- источнике запрос упадёт здесь, с понятной ошибкой, а не тихо испортит данные
+-- ниже по пайплайну. Это единственный путь загрузки trips в DWH.
 TRUNCATE TABLE dwh.taxi_trips;
 
 INSERT INTO dwh.taxi_trips
@@ -37,5 +41,5 @@ SELECT
     tolls_amount::NUMERIC(10, 2),
     improvement_surcharge::NUMERIC(10, 2),
     total_amount::NUMERIC(10, 2),
-    congestion_surcharge::NUMERIC(10,2)
+    congestion_surcharge::NUMERIC(10, 2)
 FROM ext.pg_taxi_trips_raw;

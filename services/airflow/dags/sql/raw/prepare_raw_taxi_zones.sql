@@ -1,3 +1,5 @@
+-- Слой: RAW. Справочник зон NYC TLC (265 строк, статичный, но грузим тем же паттерном).
+
 CREATE SCHEMA IF NOT EXISTS raw;
 
 CREATE TABLE IF NOT EXISTS raw.raw_taxi_zones (

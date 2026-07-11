@@ -1,15 +1,15 @@
 CREATE SCHEMA IF NOT EXISTS dwh;
 
 CREATE TABLE IF NOT EXISTS dwh.taxi_trips
-(   vendorid              INTEGER,
+(   vendorid               INTEGER,
     tpep_pickup_datetime   TIMESTAMP,
     tpep_dropoff_datetime  TIMESTAMP,
     passenger_count        INTEGER,
     trip_distance          NUMERIC(10, 2),
-    ratecodeid            INTEGER,
+    ratecodeid             INTEGER,
     store_and_fwd_flag     text,
-    pulocationid          INTEGER,
-    dolocationid          INTEGER,
+    pulocationid           INTEGER,
+    dolocationid           INTEGER,
     payment_type           INTEGER,
     fare_amount            NUMERIC(10, 2),
     extra                  NUMERIC(10, 2),

@@ -15,6 +15,13 @@ x-airflow-common: &airflow-common
     AIRFLOW__CORE__TEST_CONNECTION: "Enabled"
     AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
     AIRFLOW__WEBSERVER__SECRET_KEY: local_airflow_secret_key_for_taxi
+    # Подключения объявлены декларативно через env, а не через UI — переживают
+    # любой docker compose down/up, не нужно пересоздавать руками после рестарта.
+    # conn_id "postgres_raw" -> AIRFLOW_CONN_POSTGRES_RAW (Airflow сопоставляет их
+    # автоматически при старте scheduler/webserver).
+    AIRFLOW_CONN_POSTGRES_RAW: "postgresql://${RAW_USER}:${RAW_PASSWORD}@postgres:5432/${RAW_DB}"
+    AIRFLOW_CONN_GREENPLUM_DWH: "postgresql://gpadmin:${GP_PASSWORD}@greenplum:5432/${GP_DB}"
+    AIRFLOW_CONN_DM_CLICKHOUSE: "clickhouse://${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}@clickhouse:8123/${CLICKHOUSE_DB}"
   volumes:
     - ./services/airflow/dags:/opt/airflow/dags:ro
     - ./services/airflow/data:/opt/airflow/data:ro
@@ -89,6 +96,11 @@ services:
     # Без фиксированного hostname после docker compose down/up контейнер может
     # получить новый hostname, а Greenplum не сможет стартовать со старым volume.
     hostname: greenplum
+    # Эксплуатационная заметка: для перезапуска стенда используй "docker compose
+    # down" (без флага -v!) + "docker compose up -d", а не "stop"/"start" — GPDB
+    # внутри контейнера требует полного цикла остановки процесса, чтобы корректно
+    # снять свои lock-файлы. Флаг "-v" удаляет volumes и снесёт все накопленные
+    # данные — используй его только для полной пересборки стенда с нуля.
     stop_grace_period: 120s
     restart: "no"
     environment:
