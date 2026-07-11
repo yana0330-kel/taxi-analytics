@@ -4,13 +4,13 @@ import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import requests
-from jinja2 import Template
-
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.hooks.base import BaseHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
+from jinja2 import Template
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import URL
 
 GP_CONN_ID = "greenplum_dwh"
 CH_CONN_ID = "dm_clickhouse"
@@ -23,36 +23,44 @@ default_args = {
     "execution_timeout": timedelta(minutes=30),
 }
 
-# Параметризованный период загрузки — передаётся в SQL-шаблон через Jinja.
-# Чтобы загрузить другой месяц, достаточно переопределить params при запуске
-# DAG (Trigger DAG w/ config), без правки SQL-файлов.
 DEFAULT_PARAMS = {
     "period_start": "2019-01-01",
     "period_end": "2019-02-01",
 }
 
-
 def read_sql_file(file_name: str) -> str:
     return (SQL_BASE_PATH / file_name).read_text(encoding="utf-8")
+
+def get_clickhouse_engine():
+    """
+    Создаёт SQLAlchemy engine для ClickHouse на основе Airflow Connection.
+    """
+    conn = BaseHook.get_connection(CH_CONN_ID)
+    url = URL.create(
+        drivername="clickhousedb",
+        username=conn.login,
+        password=conn.password,
+        host=conn.host,
+        port=conn.port,
+        database=conn.schema,
+    )
+    logging.info("Создаётся SQLAlchemy engine для ClickHouse: host=%s, port=%s", conn.host, conn.port)
+    return create_engine(url)
 
 
 def create_physical_ch_table():
     """
-    DDL в ClickHouse через HTTP-интерфейс.
-    NB: для продакшена лучше использовать официальный клиент (clickhouse-connect /
-    clickhouse-driver) вместо ручного requests.post + split(';') — это устойчивее
-    к SQL с комментариями/строковыми литералами, содержащими ';'. Здесь оставлено
-    просто, т.к. DDL-файл маленький и статичный.
+    DDL в ClickHouse через SQLAlchemy engine.
+    Разделяем SQL на отдельные стейтменты по `;`, чтобы не было проблем с
+    ClickHouse, который не поддерживает несколько стейтментов в одном execute().
     """
-    conn = BaseHook.get_connection(CH_CONN_ID)
-    url = f"http://{conn.host}:{conn.port}/"
-    headers = {"X-ClickHouse-User": conn.login, "X-ClickHouse-Key": conn.password} if conn.login else {}
-
     sql_query = read_sql_file("create_physical_ch_table.sql")
     statements = [s.strip() for s in sql_query.split(";") if s.strip()]
-    for statement in statements:
-        resp = requests.post(url, data=statement.encode("utf-8"), headers=headers)
-        resp.raise_for_status()  # явная проверка ответа ClickHouse на каждый DDL-стейтмент
+
+    engine = get_clickhouse_engine()
+    with engine.begin() as conn:
+        for statement in statements:
+            conn.execute(text(statement))
     logging.info("Физическая таблица в ClickHouse готова (%s стейтментов).", len(statements))
 
 
@@ -66,15 +74,15 @@ def run_marts_sql(sql_file: str, **context):
     logging.info("Скрипт %s выполнен для периода %s — %s.", sql_file, params["period_start"], params["period_end"])
 
 
-def check_mart_rows(**context):
-    """Пост-проверка: убеждаемся, что данные реально долетели до витрины."""
-    conn = BaseHook.get_connection(CH_CONN_ID)
-    url = f"http://{conn.host}:{conn.port}/"
-    headers = {"X-ClickHouse-User": conn.login, "X-ClickHouse-Key": conn.password} if conn.login else {}
-    resp = requests.post(url, data=b"SELECT count(*) FROM dm_ch.obt_taxi_marts", headers=headers)
-    resp.raise_for_status()
-    count = int(resp.text.strip())
-    if count == 0:
+def check_mart_rows():
+    """
+    Пост-проверка через SQLAlchemy engine ClickHouse: убеждаемся, что витрина dm_ch.obt_taxi_marts не пуста.
+    """
+    engine = get_clickhouse_engine()
+    with engine.begin() as conn:
+        count = conn.execute(text("SELECT count(*) FROM dm_ch.obt_taxi_marts")).scalar()
+
+    if not count:
         raise ValueError("Витрина dm_ch.obt_taxi_marts пуста после загрузки!")
     logging.info("Витрина dm_ch.obt_taxi_marts содержит %s строк.", count)
 
@@ -107,8 +115,8 @@ with DAG(
     )
 
     task_verify = PythonOperator(
-        task_id="check_mart_rows", 
-        python_callable=check_mart_rows
+        task_id="check_mart_rows",
+        python_callable=check_mart_rows,
     )
 
     task_create_ch >> task_create_bridge >> task_insert_via_pxf >> task_verify
