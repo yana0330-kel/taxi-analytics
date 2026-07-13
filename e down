@@ -1,0 +1,113 @@
+[33mcommit 5d1cd63f6db79502c9cc68a64b4ff58affd7f541[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: Yana Kel <kelyana0330@gmail.com>
+Date:   Sat Jul 11 21:45:25 2026 +0300
+
+    upd docker-compose
+
+[33mcommit 0147790b186f1f5a85051a3551d9f16b652a95cb[m
+Author: Yana Kel <kelyana0330@gmail.com>
+Date:   Sat Jul 11 21:37:31 2026 +0300
+
+    upd pipeline
+
+[33mcommit b3dd174c73a324feb6b2c72a0b7da6610c300977[m
+Author: Yana Kel <kelyana0330@gmail.com>
+Date:   Sat Jul 11 21:11:54 2026 +0300
+
+    README upd
+
+[33mcommit 703b571f5ccf16db48d0ca1f7abca6269a0d22a2[m
+Author: Yana Kel <kelyana0330@gmail.com>
+Date:   Sat Jul 11 21:01:44 2026 +0300
+
+    upd dashboard
+
+[33mcommit 889ed541e4b1f4e1a66b473c1a2cb78982a23400[m
+Author: Yana Kel <kelyana0330@gmail.com>
+Date:   Sat Jul 11 20:51:38 2026 +0300
+
+    update files
+
+[33mcommit cf87f798e148c0624f3f5ab505f86b735e02d25d[m
+Author: Yana Kel <kelyana0330@gmail.com>
+Date:   Sat Jul 11 14:34:32 2026 +0300
+
+    upd dashboard file
+
+[33mcommit 38422ae94036e60d9db084939e8e6480e4ee3c35[m
+Author: Yana Kel <kelyana0330@gmail.com>
+Date:   Sat Jul 11 14:31:35 2026 +0300
+
+    UPD
+
+[33mcommit 4348b9ed80373c7a6dbddfa783950b3029a23855[m
+Author: Yana Kel <kelyana0330@gmail.com>
+Date:   Sat Jul 11 14:26:35 2026 +0300
+
+    docs: обновлён README, добавлен скриншот дашборда и разбор пайплайна
+
+[33mcommit dd7680843c392313ac09928bf610117de3942328[m
+Author: Yana Kel <kelyana0330@gmail.com>
+Date:   Mon Jun 29 17:52:24 2026 +0300
+
+    UPD
+
+[33mcommit ed6f0bf4d9d415f8747dd6698c9235d14e8467a3[m
+Author: Yana Kel <kelyana0330@gmail.com>
+Date:   Sun Jun 28 18:14:35 2026 +0300
+
+    add taxi data analysis and data cleaning notebook_Pandas
+
+[33mcommit daacd78953e647a35812b0cff1c0f7e329de1313[m
+Author: Yana Kel <kelyana0330@gmail.com>
+Date:   Thu Jun 25 20:13:00 2026 +0300
+
+    feat: complete  core layer pipeline for Greenplum DWH_and_DAG_2
+
+[33mcommit e2af17e80aa4bf6a877797dabc8322851b7048f6[m
+Author: Yana Kel <kelyana0330@gmail.com>
+Date:   Thu Jun 25 00:42:04 2026 +0300
+
+    Core DAG
+
+[33mcommit 15013b0f83d3ab2f6a33753a2af01f30427cd883[m
+Author: Yana Kel <kelyana0330@gmail.com>
+Date:   Wed Jun 24 17:04:46 2026 +0300
+
+    feat: complete refactoring of load_raw_taxi_data DAG
+
+[33mcommit 6b0b306a60889b1f73f6cc563c08972c435198e7[m
+Author: Yana Kel <kelyana0330@gmail.com>
+Date:   Wed Jun 24 13:17:35 2026 +0300
+
+    feat: complete load_raw_taxi_data dag
+
+[33mcommit 9a02c51be820f0f29ca0702663df64d3ab8c15e9[m
+Author: Yana Kel <kelyana0330@gmail.com>
+Date:   Wed Jun 24 12:20:32 2026 +0300
+
+    feat: complete load_raw_taxi_data DAG with professional refactoring
+
+[33mcommit 31ab4626a7c40501361a192f429428def986a66c[m
+Author: Yana Kel <kelyana0330@gmail.com>
+Date:   Tue Jun 23 16:11:05 2026 +0300
+
+    update Read.me
+
+[33mcommit 51767b6c1c76bba1acd4ec5147f7e8c7f21487bd[m
+Author: Yana Kel <kelyana0330@gmail.com>
+Date:   Tue Jun 23 16:08:57 2026 +0300
+
+    Update README
+
+[33mcommit 703605c09e5f518eb013999d67023f836f9e66cc[m
+Author: Yana Kel <kelyana0330@gmail.com>
+Date:   Tue Jun 23 15:50:06 2026 +0300
+
+    Add taxi trips and zones DDL scripts
+
+[33mcommit 80004c5c24a0a9fa69da492b41a4c1568842402c[m
+Author: Yana Kel <kelyana0330@gmail.com>
+Date:   Tue Jun 23 13:13:40 2026 +0300
+
+    Initial commit
