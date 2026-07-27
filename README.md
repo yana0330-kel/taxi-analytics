@@ -9,7 +9,7 @@
 ```
 CSV (raw data)
    │
-[ RAW ]  PostgreSQL — сырые данные без валидации (VARCHAR), карантинный слой
+[ RAW ]  PostgreSQL — сырые данные без валидации (VARCHAR)
    │  PXF
 [ CORE / DWH ]  Greenplum (MPP) — типизация, очистка.
    │  PXF
@@ -91,7 +91,7 @@ down` + `docker compose up -d`
 │   │   │       ├── raw/          # DDL/подготовка raw-слоя
 │   │   │       ├── core/         # DDL и загрузка DWH (Greenplum)
 │   │   │       └── dm/           # DDL и построение витрины (ClickHouse)
-│   │   └── data/                 # исходные CSV (не коммитятся, см. .gitignore)
+│   │   └── data/                 # исходные CSV (не коммитятся, см .gitignore)
 │   ├── postgres/init/            # init-скрипты Postgres
 │   ├── clickhouse/init/          # init-скрипты ClickHouse
 │   ├── greenplum/                # Dockerfile для кастомного образа Greenplum+PXF
