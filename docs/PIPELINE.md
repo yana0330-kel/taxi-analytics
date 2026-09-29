@@ -17,18 +17,9 @@ The pipeline consists of three DAGs executed strictly in sequence. They can be t
 |`load_trips_to_postgres`|	Performs the same operation for `raw.raw_taxi_trips` using (`prepare_raw_taxi_trips.sql`). It runs in parallel with the zones load because the two tasks are independent. |
 |`check_loaded_rows` | Post-load validation: verifies that both raw tables contain data after loading. |
 
-**Dependencies**
-`check_csv_files`
-       │
-       ├── `load_zones_to_postgres` ──┐
-       │                             │
-       └── `load_trips_to_postgres` ──┤
-                                     ▼
-                              `check_loaded_rows`
-**Implementation Detail**
+*Dependencies:* `check_csv_files` → [`load_zones_to_postgres`,`load_trips_to_postgres`] → `check_loaded_rows`
 
-CSV column names are normalized through the COLUMN_ALIASES dictionary (for example, vendor_id → vendorid).
-This is the single mapping point that needs to be updated if the NYC TLC source file format changes.
+*Implementation Detail:* CSV column names are normalized through the `COLUMN_ALIASES` dictionary (for example, `vendor_id` → `vendorid`). This is the single mapping point that needs to be updated if the NYC TLC source file format changes.
 
 ## 2. 2_core_dwh_taxi_data — Type and Load Data into Greenplum (Core Layer)
 | Task	| Description |
@@ -40,24 +31,8 @@ This is the single mapping point that needs to be updated if the NYC TLC source 
 |`load_trips_to_greenplum` |	Executes `insert_trips.sql`, applying explicit ::CAST operations to each field and parsing timestamps with to_timestamp. Both zones and trips are loaded by executing SQL files directly; no separate Python transformation logic is used for the data load. |
 |`check_dwh_rows`	| Post-load validation: verifies that `dwh.taxi_zones` and `dwh.taxi_trips` contain data. |
 
-**Dependencies**
+*Dependencies: * `check_database_connections` → `check_postgres_source` →  `create_pxf_bridges` → [`load_zones_  to_greenplum`, `load_trips_to_greenplum`]  → `check_dwh_rows`
 
-`check_database_connections`
-             │
-             ▼
-    `check_postgres_source`
-             │
-             ▼
-      `create_pxf_bridges`
-             │
-       ┌─────┴─────┐
-       ▼           ▼
-`load_zones_     `load_trips_
-to_greenplum`    to_greenplum`
-       │           │
-       └─────┬─────┘
-             ▼
-       check_dwh_rows
 ## 3. 3_marts_clickhouse_taxi_data — Build the ClickHouse Data Mart
 | Task	| Description |
 |---|---|
@@ -67,35 +42,15 @@ to_greenplum`    to_greenplum`
 |`check_mart_rows` |	Post-load validation: verifies that the data mart contains data. |
 
 
-**Dependencies**
-`create_physical_clickhouse_table`
-             │
-             ▼
-`create_clickhouse_pxf_bridge`
-             │
-             ▼
-`insert_into_clickhouse_via_pxf`
-             │
-             ▼
-      `check_mart_rows`
+*Dependencies:* `create_physical_clickhouse_table` → `create_clickhouse_pxf_bridge` → `insert_into_clickhouse_via_pxf` → `check_mart_rows`
 
-**Period Parameterization:**
-
-The DAG accepts the following parameters:
-`period_start`
-`period_end`
-
-**Default values:**
-
-period_start = 2019-01-01
-period_end   = 2019-02-01
-
-To load a different month, run the DAG using "Trigger DAG w/ config" and override these two parameters without modifying the SQL code.
+**Period Parameterization:** 
+The DAG accepts the following parameters: `period_start`, `period_end`. Default values: `period_start` = `2019-01-01` ,`period_end` = `2019-02-01`. To load a different month, run the DAG using "Trigger DAG w/ config" and override these two parameters without modifying the SQL code.
 
 ## Common Principles Across All Three DAGs
 - **Data integrity checks:** each DAG starts by validating its prerequisites and ends by validating the result.
 - **Idempotency:** the processes can be safely re-run without unintended side effects. Target tables are fully overwritten during each run, preventing duplicate data after repeated executions.
-- **Separation of logic and orchestration:** all business logic, including DDL, calculations and filters, is stored in separate .sql files under services/airflow/dags/sql/{raw,core,dm}/. The Python code in the DAGs is responsible only for orchestration — what to run, when to run it and in which order.
+- **Separation of logic and orchestration:** all business logic, including DDL, calculations and filters, is stored in separate `.sql` - files under `services/airflow/dags/sql/{raw,core,dm}/`. The Python code in the DAGs is responsible only for orchestration — what to run, when to run it and in which order.
 - **Consistent failure-handling policy:** pipeline stability is supported by standardized default_args parameters (retries=2, retry_delay=5 min, execution_timeout=30 min) designed to handle temporary infrastructure failures.
 
 ---
