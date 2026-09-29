@@ -15,7 +15,8 @@ The pipeline consists of three DAGs executed strictly in sequence. They can be t
 |`check_csv_files`	| Validates that the source CSV files (`taxi_zone_lookup.csv`, `yellow_tripdata_2019_01.csv`) exist and are not empty before starting the pipeline. |
 |`load_zones_to_postgres`	| Truncates `raw.raw_taxi_zones` (using `prepare_raw_taxi_zones.sql`) and loads the CSV data with `COPY ... FROM STDIN`, providing efficient bulk loading into PostgreSQL.|
 |`load_trips_to_postgres`|	Performs the same operation for `raw.raw_taxi_trips` using (`prepare_raw_taxi_trips.sql`). It runs in parallel with the zones load because the two tasks are independent. |
-|`check_loaded_rows` |	Post-load validation: verifies that both raw tables contain data after loading.|
+|`check_loaded_rows` | Post-load validation: verifies that both raw tables contain data after loading. |
+
 **Dependencies**
 `check_csv_files`
        │
@@ -36,9 +37,11 @@ This is the single mapping point that needs to be updated if the NYC TLC source 
 |`check_postgres_source` |	Verifies that the raw tables exist and contain data in PostgreSQL. |
 |`create_pxf_bridges` |	Executes `create_ext_tables.sql`: recreates the target tables `dwh.taxi_zones` / `dwh.taxi_trips` and the PXF bridges (`ext.pg_taxi_zones_raw` / `ext.pg_taxi_trips_raw`) connecting Greenplum to PostgreSQL. |
 |`load_zones_to_greenplum`	| Executes `insert_zones.sql` and performs explicit type conversion from VARCHAR to INTEGER through the PXF bridge. |
-|`load_trips_to_greenplum` |	Executes `insert_trips.sql`, applying explicit ::CAST operations to each field and parsing timestamps with to_timestamp. Both zones and trips are loaded by executing SQL files directly; no separate Python transformation logic is used for the data load.
-`check_dwh_rows`	Post-load validation: verifies that `dwh.taxi_zones` and `dwh.taxi_trips` contain data. |
+|`load_trips_to_greenplum` |	Executes `insert_trips.sql`, applying explicit ::CAST operations to each field and parsing timestamps with to_timestamp. Both zones and trips are loaded by executing SQL files directly; no separate Python transformation logic is used for the data load. |
+|`check_dwh_rows`	| Post-load validation: verifies that `dwh.taxi_zones` and `dwh.taxi_trips` contain data. |
+
 **Dependencies**
+
 `check_database_connections`
              │
              ▼
@@ -62,6 +65,8 @@ to_greenplum`    to_greenplum`
 |`create_clickhouse_pxf_bridge` |	Executes `create_ch_obt_mart.sql` and recreates the writable PXF bridge `dm.ext_ch_obt_taxi_marts` in Greenplum. |
 |`insert_into_clickhouse_via_pxf` |	Executes `extract_gp_obt_data.sql`, denormalizing the data with two LEFT JOINs to the zone reference table (pickup + drop-off) and applying data-quality filters. The period is passed through Airflow params using Jinja templating. |
 |`check_mart_rows` |	Post-load validation: verifies that the data mart contains data. |
+
+
 **Dependencies**
 `create_physical_clickhouse_table`
              │
