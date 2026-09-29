@@ -1,6 +1,6 @@
 # NYC Taxi Data Analytics
 
-*[Русская версия](README.en.md)*
+*[Русская версия](README.ru.md)*
 
 An end-to-end analytics project based on NYC taxi trip data, covering the full path from raw data to an interactive BI dashboard.
 
