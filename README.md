@@ -1,106 +1,109 @@
-# taxi-analytics
-# NYC Taxi Data Pipeline (ETL)
+# NYC Taxi Data Analytics
 
-*[English version](README.en.md)*
+*[Русская версия](README.en.md)*
 
-Сквозной аналитический пайплайн: от сырых CSV с поездками нью-йоркского такси до
-интерактивного дашборда в Superset. Проект демонстрирует полный цикл: проектирование слоёв хранения, архитектурную логику, оркестрацию в Airflow и построение BI-витрины.
+An end-to-end analytics project based on NYC taxi trip data, covering the full path from raw data to an interactive BI dashboard.
 
-## Архитектура
+The project combines data analysis, SQL, DWH, ETL/ELT orchestration and BI to explore revenue, trip volume, demand patterns and geographic trends.
+
+## Architecture
 
 ```
 CSV (raw data)
    │
-[ RAW ]  PostgreSQL — сырые данные без валидации (VARCHAR)
+[ RAW ]  PostgreSQL — raw, unvalidated data (VARCHAR)
    │  PXF
-[ CORE / DWH ]  Greenplum (MPP) — типизация, очистка.
+[ CORE / DWH ]  Greenplum (MPP) — typing, cleaning
    │  PXF
-[ DATA MART ]  ClickHouse — денормализованная витрина (One Big Table)
+[ DATA MART ]  ClickHouse — denormalized mart (One Big Table)
    │
-[ BI ]  Apache Superset — дашборд для бизнес-анализа
+[ BI ]  Apache Superset — dashboard for business analysis
 ```
 
-Оркестрация всех трёх слоёв — Apache Airflow, три последовательных DAG-а:
-1. `1_stage_raw_taxi_data` — загрузка CSV в PostgreSQL (raw)
-2. `2_core_dwh_taxi_data` — перенос и типизация данных в Greenplum (core)
-3. `3_marts_clickhouse_taxi_data` — построение витрины в ClickHouse (mart)
+The three layers are orchestrated by Apache Airflow, via three sequential DAGs:
+1. `1_stage_raw_taxi_data` — loads CSV data into PostgreSQL (raw layer)
+2. `2_core_dwh_taxi_data` — transfers and transforms data into Greenplum (core layer)
+3. `3_marts_clickhouse_taxi_data` — builds the analytical data mart in ClickHouse
 
-Подробный разбор каждого DAG-а и его тасков — в [`docs/PIPELINE.md`](docs/PIPELINE.md).
+A detailed breakdown of each DAG and its tasks is in [`docs/PIPELINE.md`](docs/PIPELINE.md)
 
-## Стек технологий
-* **Оркестрация:** Apache Airflow
-* **Сырой слой (Raw):** PostgreSQL
-* **Хранилище данных (DWH):** Greenplum (MPP СУБД)
-* **Витрины данных (Data Marts):** ClickHouse
-* **BI-аналитика и дашборды:** Apache Superset
-* **Инфраструктура:** Docker / Docker Compose
-* **Интеграция между СУБД:** PXF (Platform Extension Framework)
+## Tech stack
+* **Analytics & SQL:** SQL, PostgreSQL
+* **Data Warehouse:** Greenplum (MPP)
+* **Data Mart:** ClickHouse
+* **Orchestration:** Apache Airflow
+* **BI & Visualization:** Apache Superset
+* **Infrastructure:** Docker / Docker Compose
+* **Cross-database integration:** PXF
+* **Analysis:** Python, Pandas, Jupyter Notebook
 
-## Почему такая архитектура
+## Why this architecture
 
-Каждый слой решает одну задачу:
-- **Raw** — принимает данные "как есть", без потерь при сбое источника.
-- **Core/DWH** — приводит данные к правильным типам и создает централизованное хранилище чистых данных по сущностям (поездки, зоны).
-- **Data Mart** — денормализованная витрина, оптимизированная под скорость чтения
-  для BI, а не под целостность.
+Each layer solves one specific problem:
+- **Raw** — stores source data with minimal transformation.
+- **Core/DWH** — cleans and types data and organizes analytical entities such as trips and zones.
+- **Data Mart** — provides a denormalized structure optimized for BI queries and analysis.
 
-## Дашборд
+## Dashboard
 
-![Дашборд NYC Taxi Analytics](docs/dashboard.png)
+![NYC Taxi Analytics Dashboard](docs/dashboard.png)
 
-### Ключевые инсайты (январь 2019, выборка из данных NYC TLC)
+### Key insights (January 2019, sample from NYC TLC data)
 
-- **Общая выручка** за месяц — $118M при **7.58M** поездок, средний чек — **$15.51**.
-- **Средняя поездка** — 2.82 мили и 12.92 минуты — типичная внутригородская
-  поездка, а не аэропортовый трансфер.
-- **Пиковая нагрузка** приходится на 17:00–19:00 (вечерний час пик).
-- **Топ районов посадки и высадки**: Upper East Side South/North, Midtown Center —
-  деловой и жилой центр Манхэттена доминирует, что ожидаемо для NYC yellow taxi.
-- **Данные требуют очистки перед анализом**: в исходном датасете встречаются
-  поездки с некорректными датами и нулевыми/отрицательными суммами — в витрину
-  они не попадают благодаря фильтрам качества в `extract_gp_obt_data.sql`.
+- **Total revenue** for the month — $118M across **7.58M** trips, average fare **$15.51**.
+- **Average trip** — 2.82 miles and 12.92 minutes — a typical intra-city ride
+  rather than an airport transfer.
+- **Peak load** falls between 5–7 PM (evening rush hour).
+- **Top pickup/dropoff zones**: Upper East Side South/North, Midtown Center —
+  Manhattan's business and residential core dominates, as expected for NYC
+  yellow taxi data.
+- **Data requires cleaning before analysis**: the source dataset contains
+  trips with invalid dates and zero/negative fare amounts — these are
+  filtered out before reaching the mart, via quality filters in
+  `extract_gp_obt_data.sql`.
 
-## Как запустить локально
+## Running it locally
 
-Проект использует файл конфигурации `.env` (создай его по образцу переменных,
-на которые ссылается `docker-compose.yml`).
+The project uses a `.env` file for configuration (create it based on the
+variables referenced in `docker-compose.yml`).
 
 ```bash
 docker compose up -d
 ```
 
-Если стенд уже запускался раньше и нужно перезапустить — используй `docker compose
-down` + `docker compose up -d`
+If the stack was already run before and needs a restart, use `docker compose
+down` + `docker compose up -d`.
 
-Запуск пайплайна: в Airflow UI (см. порты ниже) запустить DAG-и по порядку —
-`1_stage_raw_taxi_data` → `2_core_dwh_taxi_data` → `3_marts_clickhouse_taxi_data`.
+To run the pipeline: in the Airflow UI (see ports below), trigger the DAGs in
+order — `1_stage_raw_taxi_data` → `2_core_dwh_taxi_data` →
+`3_marts_clickhouse_taxi_data`.
 
-### Карта сетевых портов:
+### Port map:
 * **Apache Airflow UI:** [http://localhost:8080](http://localhost:8080)
 * **Apache Superset UI:** [http://localhost:8088](http://localhost:8088)
-* **PostgreSQL (Raw):** `localhost:5433` (База: `rawdb`, Схема: `raw`)
-* **Greenplum (DWH):** `localhost:5434` (База: `dwh`)
-* **ClickHouse (Marts):** `localhost:8123` (База: `dm_ch`)
+* **PostgreSQL (Raw):** `localhost:5433` (DB: `rawdb`, schema: `raw`)
+* **Greenplum (DWH):** `localhost:5434` (DB: `dwh`)
+* **ClickHouse (Marts):** `localhost:8123` (DB: `dm_ch`)
 
-## Структура репозитория
+## Repository structure
 
 ```
-├── research/                    # EDA и ad-hoc аналитика в pandas (Jupiter NoteBook)
+├── research/                    # EDA and ad-hoc analysis in pandas (Jupyter Notebook)
 ├── services/
 │   ├── airflow/
-│   │   ├── dags/                 # DAG-и Airflow (1_stage, 2_core, 3_marts)
+│   │   ├── dags/                 # Airflow DAGs (1_stage, 2_core, 3_marts)
 │   │   │   └── sql/
-│   │   │       ├── raw/          # DDL/подготовка raw-слоя
-│   │   │       ├── core/         # DDL и загрузка DWH (Greenplum)
-│   │   │       └── dm/           # DDL и построение витрины (ClickHouse)
-│   │   └── data/                 # исходные CSV (не коммитятся, см .gitignore)
-│   ├── postgres/init/            # init-скрипты Postgres
-│   ├── clickhouse/init/          # init-скрипты ClickHouse
-│   ├── greenplum/                # Dockerfile для кастомного образа Greenplum+PXF
-│   └── superset/                 # конфигурация и инициализация Superset
+│   │   │       ├── raw/          # DDL / raw-layer prep
+│   │   │       ├── core/         # DDL and DWH load (Greenplum)
+│   │   │       └── dm/           # DDL and mart build (ClickHouse)
+│   │   └── data/                 # source CSVs (not committed, see .gitignore)
+│   ├── postgres/init/            # Postgres init scripts
+│   ├── clickhouse/init/          # ClickHouse init scripts
+│   ├── greenplum/                # Dockerfile for the custom Greenplum+PXF image
+│   └── superset/                 # Superset configuration and initialization
 ├── docs/
-│   ├── dashboard.png             # скриншот финального дашборда
-│   └── PIPELINE.md               # построчный разбор DAG-ов и тасков
+│   ├── dashboard.png             # screenshot of the final dashboard
+│   └── PIPELINE.md               # line-by-line breakdown of DAGs and tasks
 ├── docker-compose.yml
 ├── .gitignore
 └── README.md
